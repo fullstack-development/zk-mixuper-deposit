@@ -81,7 +81,9 @@ library
       Ext.PlutusTx.List
       Ext.PlutusTx.Numeric
       Service.MerkleTree
+      Service.ProtocolToken
       Mixer.Datum
+      Mixer.Script
     build-depends:
       base >= 4.9 && < 5,
       aeson -any,
@@ -99,4 +101,5 @@ library
       plutus-script-utils -any,
       text -any,
       lens -any,
+      plutus-use-cases,
     hs-source-dirs: src

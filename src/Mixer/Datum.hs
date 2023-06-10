@@ -38,8 +38,9 @@ PlutusTx.makeIsDataIndexed
   ''DepositRedeemer
   [('DepositRedeemer, 0)]
 
-newtype DepositDatum = DepositDatum
+data DepositDatum = DepositDatum
   { merkleTreeState :: MerkleTreeState
+  , merkleTreeRoot :: Integer
   }
   deriving stock (Generic, Haskell.Show, Haskell.Eq)
 
