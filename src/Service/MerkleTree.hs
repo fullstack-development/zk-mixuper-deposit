@@ -1,6 +1,10 @@
 {-# LANGUAGE RecordWildCards #-}
 -- TODO remove RecordWildCards
 {-# LANGUAGE TemplateHaskell #-}
+{-# OPTIONS_GHC -Wno-simplifiable-class-constraints #-}
+{-# OPTIONS_GHC -Wno-redundant-constraints #-}
+{-# OPTIONS_GHC -fno-specialise #-}
+{-# OPTIONS_GHC -fno-omit-interface-pragmas #-}
 
 -- | Implementation based on https://github.com/input-output-hk/hydra/tree/master/plutus-merkle-tree
 module Service.MerkleTree where
