@@ -81,6 +81,7 @@ library
       Ext.PlutusTx.List
       Ext.PlutusTx.Numeric
       Service.MerkleTree
+      Mixer.Datum
     build-depends:
       base >= 4.9 && < 5,
       aeson -any,

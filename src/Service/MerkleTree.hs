@@ -26,9 +26,8 @@ hash :: BuiltinByteString -> Hash
 hash = sha2_256
 {-# INLINEABLE hash #-}
 
-{- | Combines two hashes digest into a new one. This is effectively a new hash
- digest of the same length.
--}
+-- | Combines two hashes digest into a new one. This is effectively a new hash
+-- digest of the same length.
 combineHash :: Hash -> Hash -> Hash
 combineHash h h' = hash (appendByteString h h')
 {-# INLINEABLE combineHash #-}
@@ -38,9 +37,9 @@ checkHashLength = (== 32) . lengthOfByteString
 {-# INLINEABLE checkHashLength #-}
 
 data MerkleTreeConfig = MerkleTreeConfig
-  { zeroRoot :: Hash -- zero root digest
-  , zeroLeaf :: Hash
-  , height :: Integer
+  { zeroRoot :: Hash, -- zero root digest
+    zeroLeaf :: Hash,
+    height :: Integer
   }
   deriving stock (Generic, Haskell.Show, Haskell.Eq)
 
@@ -64,8 +63,8 @@ PlutusTx.makeIsDataIndexed
   [('MerkleEmpty, 0), ('MerkleNode, 1), ('MerkleLeaf, 2)]
 
 data MerkleTreeState = MerkleTreeState
-  { nextLeaf :: NextInsertionCounter
-  , tree :: MerkleTree
+  { nextLeaf :: NextInsertionCounter,
+    tree :: MerkleTree
   }
   deriving stock (Generic, Haskell.Show, Haskell.Eq)
 
@@ -75,9 +74,8 @@ PlutusTx.makeIsDataIndexed
   ''MerkleTreeState
   [('MerkleTreeState, 0)]
 
-{- | Make empty Merkle Tree, filling leaves with MerkleEmpty
- and other nodes with zeros - list of zero digests starting from root, excluding zero leaf
--}
+-- | Make empty Merkle Tree, filling leaves with MerkleEmpty
+-- and other nodes with zeros - list of zero digests starting from root, excluding zero leaf
 mkEmptyMT :: Integer -> Hash -> MerkleTree
 mkEmptyMT height zeroLeaf = goCreate zeros
   where
@@ -95,31 +93,31 @@ calculateZeroRoot :: Integer -> Hash -> Hash
 calculateZeroRoot h zeroHash
   | h == 0 = zeroHash
   | otherwise =
-      let new = combineHash zeroHash zeroHash
-       in calculateZeroRoot (h - 1) new
+    let new = combineHash zeroHash zeroHash
+     in calculateZeroRoot (h - 1) new
 {-# INLINEABLE calculateZeroRoot #-}
 
-{- | Counter of next inserted item is converted to Merkle Path.
- A number in binary could be considered as path in a binary tree,
- e.g. for a tree of height 4: 8th insertion in binary is [True,False,False,False],
- which is interpreted as "to find where to insert new leaf go to [right,left,left,left]"
--}
+-- | Counter of next inserted item is converted to Merkle Path.
+-- A number in binary could be considered as path in a binary tree,
+-- e.g. for a tree of height 4: 8th insertion in binary is [True,False,False,False],
+-- which is interpreted as "to find where to insert new leaf go to [right,left,left,left]"
 counterToPath :: Integer -> NextInsertionCounter -> MerkleProofPath
 counterToPath h n
   | n == 0 = zeroArr
   | n > 2 ^ h = traceError "Merkle tree is full"
   | otherwise = take (h - length binaryN) zeroArr <> binaryN
-  -- TODO drop (length binaryN)
   where
+    -- TODO drop (length binaryN)
+
     zeroArr = replicate h False
     binaryN = reverse $ go n
     go k
       | k == 0 = []
       | otherwise =
-          let (d, m) = divMod k 2
-           in if m == 0
-                then False : go d
-                else True : go d
+        let (d, m) = divMod k 2
+         in if m == 0
+              then False : go d
+              else True : go d
 {-# INLINEABLE counterToPath #-}
 
 -- | Traverse a tree according to Merkle Path saving subtrees, which are complementary to the path
@@ -132,9 +130,8 @@ splitByPathMT path tree = snd $ foldl reducer (tree, []) path
     reducer (t, acc) _ = (t, acc)
 {-# INLINEABLE splitByPathMT #-}
 
-{- | Starting from inserted leaf compose new Merkle Tree from Merkle Path subtrees,
- and rehash all path elements
--}
+-- | Starting from inserted leaf compose new Merkle Tree from Merkle Path subtrees,
+-- and rehash all path elements
 composeByPathMT :: Hash -> MerkleTree -> (Bool, MerkleTree) -> MerkleTree
 composeByPathMT zeroLeaf l@(MerkleLeaf h) (_, MerkleEmpty) =
   MerkleNode (combineHash h zeroLeaf) l MerkleEmpty
@@ -146,9 +143,8 @@ composeByPathMT _ acc@(MerkleNode hacc _ _) (p, el@(MerkleNode hel _ _))
 composeByPathMT _ _ _ = traceError "Not consistent Merkle Tree composition"
 {-# INLINEABLE composeByPathMT #-}
 
-{- | insert is done off-chain first, it returns new MerkleTree (it should be a part of contract state)
- it is then checked on-chain: newMerkleTree == insert depositedCommitment oldMerkleTree
--}
+-- | insert is done off-chain first, it returns new MerkleTree (it should be a part of contract state)
+-- it is then checked on-chain: newMerkleTree == insert depositedCommitment oldMerkleTree
 insert :: MerkleTreeConfig -> Hash -> MerkleTreeState -> MerkleTreeState
 insert config commitment inputState = MerkleTreeState outputCounter outputTree
   where
