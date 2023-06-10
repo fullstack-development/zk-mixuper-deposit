@@ -1,5 +1,7 @@
 module MyModule where
 
+import Prelude
+
 hello :: String
 hello = "hello"
 

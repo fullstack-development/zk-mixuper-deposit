@@ -1,6 +1,6 @@
--- plutus-starter package
+-- tornadano-deposit package
 packages:
-  plutus-starter.cabal
+  tornadano-deposit.cabal
 
 -- plutus apps release
 source-repository-package
