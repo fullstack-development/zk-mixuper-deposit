@@ -78,7 +78,9 @@ common lang
 library
     import: lang
     exposed-modules:
-      MyModule
+      Ext.PlutusTx.List
+      Ext.PlutusTx.Numeric
+      Service.MerkleTree
     build-depends:
       base >= 4.9 && < 5,
       aeson -any,
