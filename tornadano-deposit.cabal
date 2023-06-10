@@ -84,6 +84,7 @@ library
       Service.ProtocolToken
       Mixer.Datum
       Mixer.Script
+      Mixer.Script.Core
     build-depends:
       base >= 4.9 && < 5,
       aeson -any,
