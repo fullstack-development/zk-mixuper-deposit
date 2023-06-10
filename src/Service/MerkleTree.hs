@@ -56,6 +56,12 @@ data MerkleTree
   | MerkleLeaf Hash
   deriving stock (Generic, Haskell.Show, Haskell.Eq)
 
+instance Eq MerkleTree where
+  {-# INLINABLE (==) #-}
+  (MerkleLeaf h0) == (MerkleLeaf h1) = h0 == h1
+  (MerkleNode h0 l1 r1) == (MerkleNode h1 l2 r2) = h0 == h1 && l1 == l2 && r1 == r2
+  _ == _ = False
+
 PlutusTx.makeLift ''MerkleTree
 
 PlutusTx.makeIsDataIndexed
@@ -67,6 +73,10 @@ data MerkleTreeState = MerkleTreeState
     tree :: MerkleTree
   }
   deriving stock (Generic, Haskell.Show, Haskell.Eq)
+
+instance Eq MerkleTreeState where
+  {-# INLINABLE (==) #-}
+  MerkleTreeState nl1 t1 == MerkleTreeState nl2 t2 = nl1 == nl2 && t1 == t2
 
 PlutusTx.makeLift ''MerkleTreeState
 

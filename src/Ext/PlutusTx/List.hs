@@ -1,5 +1,3 @@
-{-# LANGUAGE NoImplicitPrelude #-}
-
 module Ext.PlutusTx.List where
 
 import PlutusTx.Prelude
