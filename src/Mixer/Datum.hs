@@ -44,7 +44,7 @@ PlutusTx.makeIsDataIndexed
 
 data DepositDatum = DepositDatum
   { merkleTreeState :: MerkleTreeState
-  , merkleTreeRoot :: Integer
+  , merkleTreeRoot :: Maybe Integer
   }
   deriving stock (Generic, Haskell.Show, Haskell.Eq)
 

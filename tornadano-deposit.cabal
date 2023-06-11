@@ -80,6 +80,7 @@ library
     exposed-modules:
       Ext.PlutusTx.List
       Ext.PlutusTx.Numeric
+      Ext.PlutusTx.Builtins
       Service.MerkleTree
       Service.ProtocolToken
       Mixer.Datum

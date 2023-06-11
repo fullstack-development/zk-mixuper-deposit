@@ -174,13 +174,13 @@ insert config commitment inputState = MerkleTreeState outputCounter outputTree
 {-# INLINEABLE insert #-}
 
 -- | Returns current root if Merkle Tree is not empty
-currentRoot :: MerkleTreeConfig -> MerkleTree -> Maybe Hash
-currentRoot MerkleTreeConfig {..} tree = case tree of
+getRoot :: MerkleTreeConfig -> MerkleTree -> Maybe Hash
+getRoot MerkleTreeConfig {..} tree = case tree of
   MerkleNode root _ _
     | root == zeroRoot -> Nothing
     | otherwise -> Just root
   _ -> Nothing
-{-# INLINEABLE currentRoot #-}
+{-# INLINEABLE getRoot #-}
 
 nonEmptyLeafs :: MerkleTree -> [Hash]
 nonEmptyLeafs (MerkleNode _ l r) = nonEmptyLeafs l <> nonEmptyLeafs r

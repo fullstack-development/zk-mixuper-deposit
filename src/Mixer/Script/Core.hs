@@ -22,6 +22,7 @@ import qualified PlutusTx
 import PlutusTx.Prelude
 import qualified Service.MerkleTree as T
 import Service.ProtocolToken (getNextState)
+import Ext.PlutusTx.Builtins (byteString2Integer)
 
 data DepositScript
 
@@ -59,8 +60,12 @@ validateDeposit conf inputState outputState inputValue outputValue commit =
   and
     [ traceIfFalse "Commitment has been submitted before" $ notElem commit $ T.nonEmptyLeafs $ T.tree currentTreeState,
       traceIfFalse "Nominal amount should be paid to script" $ poolNominal conf == depositedAdaAmount,
-      traceIfFalse "Incorrect Merkle Tree state update" $ merkleTreeState outputState == T.insert (merkleTreeConfig conf) commit currentTreeState
+      traceIfFalse "Incorrect Merkle Tree state update" $ newTreeState == T.insert treeConf commit currentTreeState,
+      traceIfFalse "Merkle Tree root is not correct" $ merkleTreeRoot outputState == rootTrunc
     ]
   where
+    treeConf = merkleTreeConfig conf
     currentTreeState = merkleTreeState inputState
+    newTreeState = merkleTreeState outputState
+    rootTrunc = byteString2Integer 31 . takeByteString 31 <$> T.getRoot treeConf (T.tree newTreeState)
     depositedAdaAmount = valueOf outputValue Ada.adaSymbol Ada.adaToken - valueOf inputValue Ada.adaSymbol Ada.adaToken
