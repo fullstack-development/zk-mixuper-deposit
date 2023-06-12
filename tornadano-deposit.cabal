@@ -128,3 +128,24 @@ executable dump-script
     cardano-ledger-alonzo,
     cardano-api,
     tornadano-deposit,
+
+executable dump-policy
+  import: lang
+  main-is: Main.hs
+  other-modules:
+    Options
+  hs-source-dirs: dump-policy
+  ghc-options:
+    -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+    base >= 4.9 && < 5,
+    text,
+    aeson,
+    optparse-applicative,
+    bytestring,
+    plutus-ledger-api,
+    plutus-ledger,
+    plutus-core,
+    cardano-ledger-alonzo,
+    cardano-api,
+    tornadano-deposit,

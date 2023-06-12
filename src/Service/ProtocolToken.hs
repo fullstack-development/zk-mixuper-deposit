@@ -1,13 +1,18 @@
-{-# OPTIONS_GHC -Wno-simplifiable-class-constraints #-}
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
-{-# OPTIONS_GHC -fno-specialise #-}
+{-# OPTIONS_GHC -Wno-simplifiable-class-constraints #-}
 {-# OPTIONS_GHC -fno-omit-interface-pragmas #-}
+{-# OPTIONS_GHC -fno-specialise #-}
 
 -- Interface to Plutus.Contracts.Currency
 module Service.ProtocolToken where
 
-import Ledger.Value (AssetClass (unAssetClass), assetClass, assetClassValueOf)
+import Cardano.Api.Shelley (PlutusScript (..), PlutusScriptV1)
+import Codec.Serialise (serialise)
+import qualified Data.ByteString.Lazy as LB
+import qualified Data.ByteString.Short as SBS
+import Ledger.Value (AssetClass (..), assetClass, assetClassValueOf)
 import qualified Plutus.Contracts.Currency as Currency
+import qualified Plutus.V1.Ledger.Api as Ledger
 import Plutus.V2.Ledger.Api
   ( Datum (getDatum),
     FromData,
@@ -28,15 +33,15 @@ mkProtocolToken (TxOutRef h i) tn =
   let currency =
         Currency.OneShotCurrency
           { Currency.curRefTransactionOutput = (h, i),
-            Currency.curAmounts = AssocMap.singleton tn 1
+            Currency.curAmounts = AssocMap.singleton tn 2
           }
    in assetClass (Currency.currencySymbol currency) tn
 
-mkCurrency :: TxOutRef -> AssetClass -> Currency.OneShotCurrency
-mkCurrency (TxOutRef h i) token =
+mkCurrency :: TxOutRef -> TokenName -> Currency.OneShotCurrency
+mkCurrency (TxOutRef h i) tn =
   Currency.OneShotCurrency
     { Currency.curRefTransactionOutput = (h, i),
-      Currency.curAmounts = AssocMap.singleton (snd $ unAssetClass token) 2
+      Currency.curAmounts = AssocMap.singleton tn 2
     }
 
 {-# INLINEABLE getNextState #-}
@@ -64,3 +69,19 @@ getNextState protocolToken ctx = case getContinuingOutputs ctx of
 {-# INLINEABLE containsOneProtocolToken #-}
 containsOneProtocolToken :: Value -> AssetClass -> Bool
 containsOneProtocolToken val token = 1 == assetClassValueOf val token
+
+plutusScript :: Currency.OneShotCurrency -> Ledger.Script
+plutusScript =
+  Ledger.unMintingPolicyScript . Currency.curPolicy
+
+validator :: Currency.OneShotCurrency -> Ledger.Validator
+validator = Ledger.Validator . plutusScript
+
+scriptAsCbor :: Currency.OneShotCurrency -> LB.ByteString
+scriptAsCbor = serialise . validator
+
+cardanoApiMintingScript :: Currency.OneShotCurrency -> PlutusScript PlutusScriptV1
+cardanoApiMintingScript = PlutusScriptSerialised . SBS.toShort . LB.toStrict . scriptAsCbor
+
+scriptShortBs :: Currency.OneShotCurrency -> SBS.ShortByteString
+scriptShortBs = SBS.toShort . LB.toStrict . scriptAsCbor

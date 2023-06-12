@@ -4,3 +4,6 @@ cradle:
       component: "tornadano-deposit:lib:tornadano-deposit"
     - path: "./dump-script"
       component: "tornadano-deposit:exe:dump-script"
+    - path: "./dump-policy"
+      component: "tornadano-deposit:exe:dump-policy"
+
