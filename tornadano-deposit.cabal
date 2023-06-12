@@ -104,4 +104,27 @@ library
       text -any,
       lens -any,
       plutus-use-cases,
+      cardano-api,
+      serialise,
     hs-source-dirs: src
+
+executable dump-script
+  import: lang
+  main-is: Main.hs
+  other-modules:
+    Options
+  hs-source-dirs: dump-script
+  ghc-options:
+    -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+    base >= 4.9 && < 5,
+    text,
+    aeson,
+    optparse-applicative,
+    bytestring,
+    plutus-ledger-api,
+    plutus-ledger,
+    plutus-core,
+    cardano-ledger-alonzo,
+    cardano-api,
+    tornadano-deposit,

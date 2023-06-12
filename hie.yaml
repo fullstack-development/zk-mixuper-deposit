@@ -2,3 +2,5 @@ cradle:
   cabal:
     - path: "./src"
       component: "tornadano-deposit:lib:tornadano-deposit"
+    - path: "./dump-script"
+      component: "tornadano-deposit:exe:dump-script"
