@@ -106,6 +106,7 @@ library
       plutus-use-cases,
       cardano-api,
       serialise,
+      plutonomy,
     hs-source-dirs: src
 
 executable dump-script

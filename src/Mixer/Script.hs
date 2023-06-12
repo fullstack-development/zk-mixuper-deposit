@@ -9,12 +9,18 @@ import Mixer.Script.Core (depositScript)
 import qualified Plutus.Script.Utils.V2.Scripts as Scripts
 import qualified Plutus.Script.Utils.V2.Typed.Scripts.Validators as Scripts
 import Prelude
+import Plutonomy (optimizeUPLC)
 
+-- validator size for merkle tree height 7: 6102 bytes
 depositValidator :: DepositConfig -> Scripts.Validator
 depositValidator = Scripts.validatorScript . depositScript
 
+-- validator size for merkle tree height 7: 4809 bytes
+depositValidatorOptimized :: DepositConfig -> Scripts.Validator
+depositValidatorOptimized = optimizeUPLC . depositValidator
+
 scriptAsCbor :: DepositConfig -> LB.ByteString
-scriptAsCbor = serialise . depositValidator
+scriptAsCbor = serialise . depositValidatorOptimized
 
 cardanoApiScript :: DepositConfig -> PlutusScript PlutusScriptV2
 cardanoApiScript = PlutusScriptSerialised . SBS.toShort . LB.toStrict . scriptAsCbor
