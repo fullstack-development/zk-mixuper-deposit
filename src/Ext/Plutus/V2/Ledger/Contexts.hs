@@ -21,3 +21,9 @@ filterInputsByToken cur tn = filter findToken
     findToken i =
       let input = txInInfoResolved i
        in valueOf (txOutValue input) cur tn == 1
+
+{-# INLINEABLE filterOutputsByToken #-}
+filterOutputsByToken :: CurrencySymbol -> TokenName -> [TxOut] -> [TxOut]
+filterOutputsByToken cur tn = filter findToken
+  where
+    findToken o = valueOf (txOutValue o) cur tn == 1

@@ -16,6 +16,7 @@ import qualified Plutus.Script.Utils.V2.Typed.Scripts as Scripts
 import Plutus.V2.Ledger.Api
   ( ScriptContext,
     TxInInfo (txInInfoResolved),
+    TxInfo (txInfoOutputs),
     TxOut (txOutValue),
     Value,
     scriptContextTxInfo,
@@ -58,20 +59,21 @@ validatorLogic conf (DepositTree inputState) (Deposit commit) ctx =
     && validateDeposit conf inputState outputState inputValue outputValue commit
   where
     msg = "Incorrect next state"
+    info = scriptContextTxInfo ctx
+    outputs = txInfoOutputs info
     protocolCurr = protocolCurrency conf
-    (nextStateDatum :: MixerDatum, treeOutputValue) = getNextState protocolCurr (depositTreeTokenName conf) ctx
+    (nextStateDatum :: MixerDatum, treeOutputValue) = getNextState protocolCurr (depositTreeTokenName conf) outputs
     outputState = case nextStateDatum of
       DepositTree dd -> dd
       Vault -> traceError msg
     treeInputValue = case findOwnInput ctx of
       Just input -> txOutValue $ txInInfoResolved input
       Nothing -> traceError "Can't find own input"
-    inputs = txInfoInputs $ scriptContextTxInfo ctx
-    vaultInput = case uniqueElement $ filterInputsByToken protocolCurr (vaultTokenName conf) inputs of
+    vaultInput = case uniqueElement $ filterInputsByToken protocolCurr (vaultTokenName conf) (txInfoInputs info) of
       Just i -> i
       Nothing -> traceError "Can't find vault input"
     inputValue = txOutValue . txInInfoResolved $ vaultInput
-    (vaultStateDatum :: MixerDatum, outputValue) = getNextState protocolCurr (depositTreeTokenName conf) ctx
+    (vaultStateDatum :: MixerDatum, outputValue) = getNextState protocolCurr (vaultTokenName conf) outputs
     isVault = case vaultStateDatum of
       DepositTree _ -> False
       Vault -> True

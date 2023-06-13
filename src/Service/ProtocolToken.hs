@@ -10,6 +10,7 @@ import Cardano.Api.Shelley (PlutusScript (..), PlutusScriptV1)
 import Codec.Serialise (serialise)
 import qualified Data.ByteString.Lazy as LB
 import qualified Data.ByteString.Short as SBS
+import Ext.Plutus.V2.Ledger.Contexts (filterOutputsByToken)
 import Ledger.Value (CurrencySymbol, valueOf)
 import qualified Plutus.Contracts.Currency as Currency
 import qualified Plutus.V1.Ledger.Api as Ledger
@@ -17,13 +18,11 @@ import Plutus.V2.Ledger.Api
   ( Datum (getDatum),
     FromData,
     OutputDatum (OutputDatum),
-    ScriptContext,
     TokenName,
     TxOut (txOutDatum, txOutValue),
     TxOutRef (TxOutRef),
     Value,
   )
-import Plutus.V2.Ledger.Contexts (getContinuingOutputs)
 import qualified PlutusTx
 import qualified PlutusTx.AssocMap as AssocMap
 import PlutusTx.Prelude
@@ -40,17 +39,12 @@ getNextState ::
   (FromData d) =>
   CurrencySymbol ->
   TokenName ->
-  ScriptContext ->
+  [TxOut] ->
   (d, Value)
-getNextState cur tn ctx = case getContinuingOutputs ctx of
-  [o] -> (getNextStateDatum o, getNextStateValue o)
+getNextState cur tn outs = case filterOutputsByToken cur tn outs of
+  [o] -> (getNextStateDatum o, txOutValue o)
   _ -> traceError "Exacly one script output should be created for next script state"
   where
-    getNextStateValue o =
-      let val = txOutValue o
-       in if containsOneProtocolToken val cur tn
-            then val
-            else traceError "Script output does not have Protocol Token"
     getNextStateDatum o = case txOutDatum o of
       OutputDatum d -> case PlutusTx.fromBuiltinData . getDatum $ d of
         Just r -> r
