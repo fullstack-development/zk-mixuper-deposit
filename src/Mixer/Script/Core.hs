@@ -1,61 +1,97 @@
 {-# LANGUAGE TemplateHaskell #-}
-{-# OPTIONS_GHC -Wno-simplifiable-class-constraints #-}
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
-{-# OPTIONS_GHC -fno-specialise #-}
+{-# OPTIONS_GHC -Wno-simplifiable-class-constraints #-}
 {-# OPTIONS_GHC -fno-omit-interface-pragmas #-}
+{-# OPTIONS_GHC -fno-specialise #-}
 
 module Mixer.Script.Core where
 
+import Ext.Plutus.V2.Ledger.Contexts (filterInputsByToken)
+import Ext.PlutusTx.Builtins (byteString2Integer)
 import qualified Ledger.Ada as Ada
 import qualified Ledger.Typed.Scripts as Scripts (mkUntypedValidator)
 import Ledger.Value (valueOf)
-import Mixer.Datum (Commitment, DepositConfig (..), DepositDatum (..), DepositRedeemer (..))
+import Mixer.Datum (Commitment, DepositDatum (..), MixerConfig (..), MixerDatum (..), MixerRedeemer (..))
 import qualified Plutus.Script.Utils.V2.Typed.Scripts as Scripts
 import Plutus.V2.Ledger.Api
   ( ScriptContext,
     TxInInfo (txInInfoResolved),
     TxOut (txOutValue),
     Value,
+    scriptContextTxInfo,
+    txInfoInputs,
   )
 import Plutus.V2.Ledger.Contexts (findOwnInput)
 import qualified PlutusTx
 import PlutusTx.Prelude
 import qualified Service.MerkleTree as T
 import Service.ProtocolToken (getNextState)
-import Ext.PlutusTx.Builtins (byteString2Integer)
 
-data DepositScript
+data MixerScript
 
-instance Scripts.ValidatorTypes DepositScript where
-  type RedeemerType DepositScript = DepositRedeemer
-  type DatumType DepositScript = DepositDatum
+instance Scripts.ValidatorTypes MixerScript where
+  type RedeemerType MixerScript = MixerRedeemer
+  type DatumType MixerScript = MixerDatum
 
-depositScript :: DepositConfig -> Scripts.TypedValidator DepositScript
+depositScript :: MixerConfig -> Scripts.TypedValidator MixerScript
 depositScript cfg =
-  Scripts.mkTypedValidator @DepositScript
+  Scripts.mkTypedValidator @MixerScript
     ( $$(PlutusTx.compile [||validatorLogic||])
         `PlutusTx.applyCode` PlutusTx.liftCode cfg
     )
     $$(PlutusTx.compile [||wrap||])
   where
-    wrap = Scripts.mkUntypedValidator @ScriptContext @DepositDatum @DepositRedeemer
+    wrap = Scripts.mkUntypedValidator @ScriptContext @MixerDatum @MixerRedeemer
 
+-- Allowed transitions:
 {-# INLINEABLE validatorLogic #-}
 validatorLogic ::
-  DepositConfig ->
-  DepositDatum ->
-  DepositRedeemer ->
+  MixerConfig ->
+  MixerDatum ->
+  MixerRedeemer ->
   ScriptContext ->
   Bool
-validatorLogic conf inputState r ctx = validateDeposit conf inputState outputState inputValue outputValue $ commitment r
+-- Main (merkle tree) deposit validator:
+validatorLogic conf (DepositTree inputState) (Deposit commit) ctx =
+  traceIfFalse "Deposit tree output value changed" (treeOutputValue == treeInputValue)
+    && traceIfFalse "Vault output datum changed" isVault
+    && validateDeposit conf inputState outputState inputValue outputValue commit
   where
-    (outputState :: DepositDatum, outputValue) = getNextState (protocolToken conf) ctx
-    inputValue = case findOwnInput ctx of
+    msg = "Incorrect next state"
+    protocolCurr = protocolCurrency conf
+    (nextStateDatum :: MixerDatum, treeOutputValue) = getNextState protocolCurr (depositTreeTokenName conf) ctx
+    outputState = case nextStateDatum of
+      DepositTree dd -> dd
+      Vault -> traceError msg
+    treeInputValue = case findOwnInput ctx of
       Just input -> txOutValue $ txInInfoResolved input
       Nothing -> traceError "Can't find own input"
+    inputs = txInfoInputs $ scriptContextTxInfo ctx
+    vaultInput = case uniqueElement $ filterInputsByToken protocolCurr (vaultTokenName conf) inputs of
+      Just i -> i
+      Nothing -> traceError "Can't find vault input"
+    inputValue = txOutValue . txInInfoResolved $ vaultInput
+    (vaultStateDatum :: MixerDatum, outputValue) = getNextState protocolCurr (depositTreeTokenName conf) ctx
+    isVault = case vaultStateDatum of
+      DepositTree _ -> False
+      Vault -> True
+-- Vault deposit validator:
+validatorLogic conf Vault Topup ctx = traceIfFalse "Does not spend deposit tree UTxO" hasTreeInput
+  where
+    protocolCurr = protocolCurrency conf
+    inputs = txInfoInputs $ scriptContextTxInfo ctx
+    hasTreeInput = isJust $ uniqueElement $ filterInputsByToken protocolCurr (depositTreeTokenName conf) inputs
+-- Vault withdraw validator:
+validatorLogic conf Vault Withdraw ctx = traceIfFalse "Does not spend nullifier store UTxO" hasStoreInput
+  where
+    protocolCurr = protocolCurrency conf
+    inputs = txInfoInputs $ scriptContextTxInfo ctx
+    hasStoreInput = isJust $ uniqueElement $ filterInputsByToken protocolCurr (nullifierStoreTokenName conf) inputs
+-- Disallowed transitions:
+validatorLogic _ _ _ _ = traceError "Disallowed transition"
 
 {-# INLINEABLE validateDeposit #-}
-validateDeposit :: DepositConfig -> DepositDatum -> DepositDatum -> Value -> Value -> Commitment -> Bool
+validateDeposit :: MixerConfig -> DepositDatum -> DepositDatum -> Value -> Value -> Commitment -> Bool
 validateDeposit conf inputState outputState inputValue outputValue commit =
   and
     [ traceIfFalse "Commitment has been submitted before" $ notElem commit $ T.nonEmptyLeafs $ T.tree currentTreeState,

@@ -4,25 +4,26 @@ module Main where
 
 import Cardano.Api (Error (displayError), writeFileTextEnvelope)
 import Data.String (IsString (..))
-import Ledger.Value (assetClass)
-import Mixer.Datum (DepositConfig (..))
+import Mixer.Datum (MixerConfig (..))
 import qualified Mixer.Script as MixerScript
 import Options
-  ( DepositOpts
-      ( DepositOpts,
+  ( MixerOpts
+      ( MixerOpts,
         currencySymbol,
+        depositTreeTokenName,
         merkleTreeHeight,
         merkleTreeZeroLeaf,
+        nullifierStoreTokenName,
         poolNominal,
         scriptPath,
-        tokenName
+        vaultTokenName
       ),
-    depositOpts,
+    mixerOpts,
   )
 import Options.Applicative (execParser)
 import Plutus.V1.Ledger.Bytes (fromHex)
 import Plutus.V1.Ledger.ProtocolVersions (vasilPV)
-import Plutus.V2.Ledger.Api (CurrencySymbol (CurrencySymbol), TokenName, getLedgerBytes, toData)
+import Plutus.V2.Ledger.Api (CurrencySymbol (CurrencySymbol), getLedgerBytes, toData)
 import qualified Plutus.V2.Ledger.Api as Plutus
 import qualified PlutusCore as Plutus
 import Service.MerkleTree (MerkleTreeConfig (..), calculateZeroRoot)
@@ -30,13 +31,15 @@ import Prelude
 
 main :: IO ()
 main = do
-  DepositOpts {..} <- execParser depositOpts
-  let ledgerTokenName :: TokenName = fromString tokenName
+  MixerOpts {..} <- execParser mixerOpts
   ledgerCurrSymbol :: CurrencySymbol <- either (error . show) (pure . CurrencySymbol . getLedgerBytes) $ fromHex currencySymbol
   zeroLeaf <- either (error . show) (pure . getLedgerBytes) $ fromHex merkleTreeZeroLeaf
   let config =
-        DepositConfig
-          { protocolToken = assetClass ledgerCurrSymbol ledgerTokenName,
+        MixerConfig
+          { protocolCurrency = ledgerCurrSymbol,
+            depositTreeTokenName = fromString depositTreeTokenName,
+            vaultTokenName = fromString vaultTokenName,
+            nullifierStoreTokenName = fromString nullifierStoreTokenName,
             poolNominal = poolNominal,
             merkleTreeConfig =
               MerkleTreeConfig

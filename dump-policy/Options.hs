@@ -5,7 +5,9 @@ import Options.Applicative
 import Prelude
 
 data PolicyOpts = PolicyOpts
-  { tokenName :: String,
+  { depositTreeTokenName :: String,
+    vaultTokenName :: String,
+    nullifierStoreTokenName :: String,
     transactionId :: ByteString,
     transactionIndex :: Integer,
     policyPath :: FilePath
@@ -16,11 +18,22 @@ policyParser :: Parser PolicyOpts
 policyParser =
   PolicyOpts
     <$> strOption
-      ( long "token-name"
-          <> short 't'
-          <> value "Mixer Protocol Token"
+      ( long "tree-token-name"
+          <> value "Deposit Tree Token"
           <> metavar "TOKEN_NAME"
-          <> help "Name of protocol thread token"
+          <> help "Name of deposit tree protocol thread token"
+      )
+    <*> strOption
+      ( long "vault-token-name"
+          <> value "Vault Token"
+          <> metavar "TOKEN_NAME"
+          <> help "Name of vault protocol thread token"
+      )
+    <*> strOption
+      ( long "store-token-name"
+          <> value "Nullifier Store Token"
+          <> metavar "TOKEN_NAME"
+          <> help "Name of nullifier store protocol thread token"
       )
     <*> strOption
       ( long "tx-id"

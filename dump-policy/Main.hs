@@ -21,13 +21,13 @@ import Prelude
 main :: IO ()
 main = do
   PolicyOpts {..} <- execParser policyOpts
-  let ledgerTokenName :: TokenName = fromString tokenName
+  let tokens :: [TokenName] = fromString <$> [depositTreeTokenName, vaultTokenName, nullifierStoreTokenName]
   ledgerTxId :: TxId <- either (error . show) (pure . TxId . getLedgerBytes) $ fromHex transactionId
   let txRef = TxOutRef ledgerTxId transactionIndex
-  let currency = ProtocolToken.mkCurrency txRef ledgerTokenName
+  let currency = ProtocolToken.mkCurrency txRef tokens
   costParams <- maybe (error "defaultCostModelParams failed") pure Plutus.defaultCostModelParams
   evalContext <- either (error . show) pure $ Plutus.mkEvaluationContext costParams
-  let scriptParams = [toData (txRef, ledgerTokenName)]
+  let scriptParams = [toData (txRef, tokens)]
   let (logout, e) = Plutus.evaluateScriptCounting vasilPV Plutus.Verbose evalContext (ProtocolToken.scriptShortBs currency) scriptParams
   putStrLn "Log output: " >> print logout
   case e of

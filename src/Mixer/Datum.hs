@@ -1,13 +1,14 @@
 {-# LANGUAGE TemplateHaskell #-}
-{-# OPTIONS_GHC -Wno-simplifiable-class-constraints #-}
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
-{-# OPTIONS_GHC -fno-specialise #-}
+{-# OPTIONS_GHC -Wno-simplifiable-class-constraints #-}
 {-# OPTIONS_GHC -fno-omit-interface-pragmas #-}
+{-# OPTIONS_GHC -fno-specialise #-}
 
 module Mixer.Datum where
 
 import GHC.Generics (Generic)
-import Ledger (AssetClass)
+import Ledger (CurrencySymbol)
+import Ledger.Value (TokenName)
 import qualified PlutusTx
 import PlutusTx.Prelude
 import Service.MerkleTree (Hash, MerkleTreeConfig, MerkleTreeState)
@@ -18,33 +19,37 @@ type Commitment = Hash
 
 type Lovelace = Integer
 
-data DepositConfig = DepositConfig
-  { protocolToken :: AssetClass,
+data MixerConfig = MixerConfig
+  { protocolCurrency :: CurrencySymbol,
+    depositTreeTokenName :: TokenName,
+    vaultTokenName :: TokenName,
+    nullifierStoreTokenName :: TokenName,
     poolNominal :: Integer,
     merkleTreeConfig :: MerkleTreeConfig
   }
   deriving stock (Generic, Haskell.Show, Haskell.Eq)
 
-PlutusTx.makeLift ''DepositConfig
+PlutusTx.makeLift ''MixerConfig
 
 PlutusTx.makeIsDataIndexed
-  ''DepositConfig
-  [('DepositConfig, 0)]
+  ''MixerConfig
+  [('MixerConfig, 0)]
 
-newtype DepositRedeemer = DepositRedeemer
-  { commitment :: Commitment
-  }
+data MixerRedeemer
+  = Deposit Commitment
+  | Topup
+  | Withdraw
   deriving stock (Generic, Haskell.Show, Haskell.Eq)
 
-PlutusTx.makeLift ''DepositRedeemer
+PlutusTx.makeLift ''MixerRedeemer
 
 PlutusTx.makeIsDataIndexed
-  ''DepositRedeemer
-  [('DepositRedeemer, 0)]
+  ''MixerRedeemer
+  [('Deposit, 0), ('Topup, 1), ('Withdraw, 2)]
 
 data DepositDatum = DepositDatum
-  { merkleTreeState :: MerkleTreeState
-  , merkleTreeRoot :: Maybe Integer
+  { merkleTreeState :: MerkleTreeState,
+    merkleTreeRoot :: Maybe Integer
   }
   deriving stock (Generic, Haskell.Show, Haskell.Eq)
 
@@ -53,3 +58,14 @@ PlutusTx.makeLift ''DepositDatum
 PlutusTx.makeIsDataIndexed
   ''DepositDatum
   [('DepositDatum, 0)]
+
+data MixerDatum
+  = DepositTree DepositDatum
+  | Vault
+  deriving stock (Generic, Haskell.Show, Haskell.Eq)
+
+PlutusTx.makeLift ''MixerDatum
+
+PlutusTx.makeIsDataIndexed
+  ''MixerDatum
+  [('DepositTree, 0), ('Vault, 1)]

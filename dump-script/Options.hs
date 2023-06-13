@@ -4,9 +4,11 @@ import Data.ByteString (ByteString)
 import Options.Applicative
 import Prelude
 
-data DepositOpts = DepositOpts
+data MixerOpts = MixerOpts
   { currencySymbol :: ByteString,
-    tokenName :: String,
+    depositTreeTokenName :: String,
+    vaultTokenName :: String,
+    nullifierStoreTokenName :: String,
     poolNominal :: Integer,
     merkleTreeHeight :: Integer,
     merkleTreeZeroLeaf :: ByteString,
@@ -14,9 +16,9 @@ data DepositOpts = DepositOpts
   }
   deriving stock (Show, Eq)
 
-depositParser :: Parser DepositOpts
-depositParser =
-  DepositOpts
+mixerParser :: Parser MixerOpts
+mixerParser =
+  MixerOpts
     <$> strOption
       ( long "currency-symbol"
           <> short 's'
@@ -24,11 +26,22 @@ depositParser =
           <> help "Currency symbol of protocol thread token"
       )
     <*> strOption
-      ( long "token-name"
-          <> short 't'
-          <> value "Mixer Protocol Token"
+      ( long "tree-token-name"
+          <> value "Deposit Tree Token"
           <> metavar "TOKEN_NAME"
-          <> help "Name of protocol thread token"
+          <> help "Name of deposit tree protocol thread token"
+      )
+    <*> strOption
+      ( long "vault-token-name"
+          <> value "Vault Token"
+          <> metavar "TOKEN_NAME"
+          <> help "Name of vault protocol thread token"
+      )
+    <*> strOption
+      ( long "store-token-name"
+          <> value "Nullifier Store Token"
+          <> metavar "TOKEN_NAME"
+          <> help "Name of nullifier store protocol thread token"
       )
     <*> option
       auto
@@ -60,10 +73,10 @@ depositParser =
           <> metavar "SCRIPT_PATH"
       )
 
-depositOpts :: ParserInfo DepositOpts
-depositOpts =
+mixerOpts :: ParserInfo MixerOpts
+mixerOpts =
   info
-    (depositParser <**> helper)
+    (mixerParser <**> helper)
     ( fullDesc
         <> progDesc "Dump script byte code to a file"
         <> header "dump-script - write plutus script to a file"

@@ -10,7 +10,7 @@ import Cardano.Api.Shelley (PlutusScript (..), PlutusScriptV1)
 import Codec.Serialise (serialise)
 import qualified Data.ByteString.Lazy as LB
 import qualified Data.ByteString.Short as SBS
-import Ledger.Value (AssetClass (..), assetClass, assetClassValueOf)
+import Ledger.Value (CurrencySymbol, valueOf)
 import qualified Plutus.Contracts.Currency as Currency
 import qualified Plutus.V1.Ledger.Api as Ledger
 import Plutus.V2.Ledger.Api
@@ -28,35 +28,27 @@ import qualified PlutusTx
 import qualified PlutusTx.AssocMap as AssocMap
 import PlutusTx.Prelude
 
-mkProtocolToken :: TxOutRef -> TokenName -> AssetClass
-mkProtocolToken (TxOutRef h i) tn =
-  let currency =
-        Currency.OneShotCurrency
-          { Currency.curRefTransactionOutput = (h, i),
-            Currency.curAmounts = AssocMap.singleton tn 2
-          }
-   in assetClass (Currency.currencySymbol currency) tn
-
-mkCurrency :: TxOutRef -> TokenName -> Currency.OneShotCurrency
-mkCurrency (TxOutRef h i) tn =
+mkCurrency :: TxOutRef -> [TokenName] -> Currency.OneShotCurrency
+mkCurrency (TxOutRef h i) names =
   Currency.OneShotCurrency
     { Currency.curRefTransactionOutput = (h, i),
-      Currency.curAmounts = AssocMap.singleton tn 2
+      Currency.curAmounts = AssocMap.fromList $ fmap (,1) names
     }
 
 {-# INLINEABLE getNextState #-}
 getNextState ::
   (FromData d) =>
-  AssetClass ->
+  CurrencySymbol ->
+  TokenName ->
   ScriptContext ->
   (d, Value)
-getNextState protocolToken ctx = case getContinuingOutputs ctx of
+getNextState cur tn ctx = case getContinuingOutputs ctx of
   [o] -> (getNextStateDatum o, getNextStateValue o)
   _ -> traceError "Exacly one script output should be created for next script state"
   where
     getNextStateValue o =
       let val = txOutValue o
-       in if containsOneProtocolToken val protocolToken
+       in if containsOneProtocolToken val cur tn
             then val
             else traceError "Script output does not have Protocol Token"
     getNextStateDatum o = case txOutDatum o of
@@ -67,8 +59,8 @@ getNextState protocolToken ctx = case getContinuingOutputs ctx of
     msg = "Script output inline datum not found"
 
 {-# INLINEABLE containsOneProtocolToken #-}
-containsOneProtocolToken :: Value -> AssetClass -> Bool
-containsOneProtocolToken val token = 1 == assetClassValueOf val token
+containsOneProtocolToken :: Value -> CurrencySymbol -> TokenName -> Bool
+containsOneProtocolToken val cur tn = 1 == valueOf val cur tn
 
 plutusScript :: Currency.OneShotCurrency -> Ledger.Script
 plutusScript =

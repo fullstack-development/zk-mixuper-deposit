@@ -81,6 +81,7 @@ library
       Ext.PlutusTx.List
       Ext.PlutusTx.Numeric
       Ext.PlutusTx.Builtins
+      Ext.Plutus.V2.Ledger.Contexts
       Service.MerkleTree
       Service.ProtocolToken
       Mixer.Datum
