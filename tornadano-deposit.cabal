@@ -78,7 +78,15 @@ common lang
 library
     import: lang
     exposed-modules:
-      MyModule
+      Ext.PlutusTx.List
+      Ext.PlutusTx.Numeric
+      Ext.PlutusTx.Builtins
+      Ext.Plutus.V2.Ledger.Contexts
+      Service.MerkleTree
+      Service.ProtocolToken
+      Mixer.Datum
+      Mixer.Script
+      Mixer.Script.Core
     build-depends:
       base >= 4.9 && < 5,
       aeson -any,
@@ -96,4 +104,51 @@ library
       plutus-script-utils -any,
       text -any,
       lens -any,
+      plutus-use-cases,
+      cardano-api,
+      serialise,
+      plutonomy,
     hs-source-dirs: src
+
+executable dump-script
+  import: lang
+  main-is: Main.hs
+  other-modules:
+    Options
+  hs-source-dirs: dump-script
+  ghc-options:
+    -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+    base >= 4.9 && < 5,
+    text,
+    aeson,
+    optparse-applicative,
+    bytestring,
+    plutus-ledger-api,
+    plutus-ledger,
+    plutus-core,
+    cardano-ledger-alonzo,
+    cardano-api,
+    tornadano-deposit,
+    serialise,
+
+executable dump-policy
+  import: lang
+  main-is: Main.hs
+  other-modules:
+    Options
+  hs-source-dirs: dump-policy
+  ghc-options:
+    -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+    base >= 4.9 && < 5,
+    text,
+    aeson,
+    optparse-applicative,
+    bytestring,
+    plutus-ledger-api,
+    plutus-ledger,
+    plutus-core,
+    cardano-ledger-alonzo,
+    cardano-api,
+    tornadano-deposit,
