@@ -14,10 +14,10 @@ Example in nix dev shell:
 
 ```sh
 cabal run dump-policy -- --help
-cabal run dump-policy -- -h bbd65a4af3dd5bb07b11cfb66418cdffc6bd26817559e0c5a80f405d -x 1
+cabal run dump-policy -- -h 2dba01b0cb2aba71b026d8aeac057ce9249f82dacb78a216b34fee4d52bfb909 -x 2
 ```
 
 ```sh
 cabal run dump-script -- --help
-cabal run dump-script -- -s bbd65a4af3dd5bb07b11cfb66418cdffc6bd26817559e0c5a80f405d -h 7
+cabal run dump-script -- -s 75a07ecddfcd14b0b5ac5b3ca3d03ee8337145166bc522a5ec1529c0 -h 7
 ```
