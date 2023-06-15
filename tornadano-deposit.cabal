@@ -130,6 +130,7 @@ executable dump-script
     cardano-ledger-alonzo,
     cardano-api,
     tornadano-deposit,
+    serialise,
 
 executable dump-policy
   import: lang

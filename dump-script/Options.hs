@@ -12,7 +12,8 @@ data MixerOpts = MixerOpts
     poolNominal :: Integer,
     merkleTreeHeight :: Integer,
     merkleTreeZeroLeaf :: ByteString,
-    scriptPath :: FilePath
+    scriptPath :: FilePath,
+    datumPath :: FilePath
   }
   deriving stock (Show, Eq)
 
@@ -66,11 +67,18 @@ mixerParser =
           <> help "Commitment which is considered empty, default is echo -n \"tornado.cash on cardano\" | sha256sum"
       )
     <*> strOption
-      ( long "path"
+      ( long "script-path"
           <> help "Path where the script is written"
           <> showDefault
           <> value "compiled/depositScript.plutus"
           <> metavar "SCRIPT_PATH"
+      )
+    <*> strOption
+      ( long "datum-path"
+          <> help "Path where the deposit tree datum is written"
+          <> showDefault
+          <> value "compiled/depositTree.datum"
+          <> metavar "DATUM_PATH"
       )
 
 mixerOpts :: ParserInfo MixerOpts

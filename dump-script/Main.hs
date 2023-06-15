@@ -3,21 +3,14 @@
 module Main where
 
 import Cardano.Api (Error (displayError), writeFileTextEnvelope)
+import Codec.Serialise (serialise)
+import Data.ByteString.Builder (byteStringHex, hPutBuilder)
+import qualified Data.ByteString.Lazy as BSL
 import Data.String (IsString (..))
-import Mixer.Datum (MixerConfig (..))
+import Mixer.Datum (DepositDatum (..), MixerConfig (..), MixerDatum (..))
 import qualified Mixer.Script as MixerScript
 import Options
-  ( MixerOpts
-      ( MixerOpts,
-        currencySymbol,
-        depositTreeTokenName,
-        merkleTreeHeight,
-        merkleTreeZeroLeaf,
-        nullifierStoreTokenName,
-        poolNominal,
-        scriptPath,
-        vaultTokenName
-      ),
+  ( MixerOpts (..),
     mixerOpts,
   )
 import Options.Applicative (execParser)
@@ -26,7 +19,14 @@ import Plutus.V1.Ledger.ProtocolVersions (vasilPV)
 import Plutus.V2.Ledger.Api (CurrencySymbol (CurrencySymbol), getLedgerBytes, toData)
 import qualified Plutus.V2.Ledger.Api as Plutus
 import qualified PlutusCore as Plutus
-import Service.MerkleTree (MerkleTreeConfig (..), calculateZeroRoot)
+import Service.MerkleTree
+  ( Hash,
+    MerkleTreeConfig (MerkleTreeConfig, height, zeroLeaf, zeroRoot),
+    MerkleTreeState (MerkleTreeState, nextLeaf, tree),
+    calculateZeroRoot,
+    mkEmptyMT,
+  )
+import System.IO (IOMode (WriteMode), withFile)
 import Prelude
 
 main :: IO ()
@@ -60,3 +60,26 @@ main = do
   case result of
     Left err -> putStrLn $ displayError err
     Right () -> putStrLn $ "Script written to " <> scriptPath
+  writeDepositTreeDatum datumPath merkleTreeHeight zeroLeaf
+  putStrLn $ "Datum written to " <> datumPath
+
+writeDepositTreeDatum :: FilePath -> Integer -> Hash -> IO ()
+writeDepositTreeDatum path height zeroLeaf = do
+  let depositTree =
+        DepositTree $
+          DepositDatum
+            { merkleTreeState =
+                MerkleTreeState
+                  { nextLeaf = 0,
+                    tree = mkEmptyMT height zeroLeaf
+                  },
+              merkleTreeRoot = Nothing
+            }
+  let serializedMT = serialise $ toData depositTree
+  writeLazyByteStringToFile path serializedMT
+  pure ()
+
+writeLazyByteStringToFile :: FilePath -> BSL.ByteString -> IO ()
+writeLazyByteStringToFile filePath lbs =
+  withFile filePath WriteMode $ \handle ->
+    hPutBuilder handle (byteStringHex (BSL.toStrict lbs))
