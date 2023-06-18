@@ -3,7 +3,9 @@
 module Main where
 
 import Cardano.Api (Error (displayError), writeFileTextEnvelope)
-import Codec.Serialise (serialise)
+import Codec.Serialise (deserialise, serialise)
+import qualified Data.ByteString as BS
+import qualified Data.ByteString.Base16 as Hex
 import Data.ByteString.Builder (byteStringHex, hPutBuilder)
 import qualified Data.ByteString.Lazy as BSL
 import Data.String (IsString (..))
@@ -83,3 +85,12 @@ writeLazyByteStringToFile :: FilePath -> BSL.ByteString -> IO ()
 writeLazyByteStringToFile filePath lbs =
   withFile filePath WriteMode $ \handle ->
     hPutBuilder handle (byteStringHex (BSL.toStrict lbs))
+
+readLazyByteStringHexFromFile :: FilePath -> IO BSL.ByteString
+readLazyByteStringHexFromFile filePath = do
+  hexString <- BS.readFile filePath
+  bytes <- either error pure $ Hex.decode hexString
+  pure $ BSL.fromStrict bytes
+
+deser :: BSL.ByteString -> Plutus.Data
+deser = deserialise

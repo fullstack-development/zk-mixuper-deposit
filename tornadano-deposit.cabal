@@ -124,6 +124,7 @@ executable dump-script
     aeson,
     optparse-applicative,
     bytestring,
+    base16-bytestring,
     plutus-ledger-api,
     plutus-ledger,
     plutus-core,
