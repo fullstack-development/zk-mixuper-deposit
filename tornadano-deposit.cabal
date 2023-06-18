@@ -132,6 +132,7 @@ executable dump-script
     cardano-api,
     tornadano-deposit,
     serialise,
+    plutus-tx,
 
 executable dump-policy
   import: lang
