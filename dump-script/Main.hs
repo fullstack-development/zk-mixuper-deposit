@@ -30,6 +30,8 @@ import Service.MerkleTree
   )
 import System.IO (IOMode (WriteMode), withFile)
 import Prelude
+import Data.Maybe (fromJust)
+import qualified Service.MerkleTree as T
 
 main :: IO ()
 main = do
@@ -94,3 +96,28 @@ readLazyByteStringHexFromFile filePath = do
 
 deser :: BSL.ByteString -> Plutus.Data
 deser = deserialise
+
+mkTreeConfig :: Integer -> BS.ByteString -> MerkleTreeConfig
+mkTreeConfig merkleTreeHeight merkleTreeZeroLeaf =
+  let zeroLeaf = either error getLedgerBytes $ fromHex merkleTreeZeroLeaf
+  in
+    MerkleTreeConfig
+      { zeroRoot = calculateZeroRoot merkleTreeHeight zeroLeaf,
+        zeroLeaf = zeroLeaf,
+        height = merkleTreeHeight
+      }
+
+test01 :: IO Bool
+test01 = do
+  bs0 <- readLazyByteStringHexFromFile "compiled/depositTree.datum"
+  bs1 <- readLazyByteStringHexFromFile "compiled/datumOut.cbor"
+  let commit = either error getLedgerBytes $ fromHex "a6412338645d14a7782c4ef186ae0deae1d3efb6c140b62bb8a5f1238cdcd93f"
+  let conf = mkTreeConfig 7 "cd4ecd8b80466c7325e9d2f76fce6eb8a236667734eb1646bcfdcb51"
+  let d0 = deser bs0
+  let d1 = deser bs1
+  let DepositTree md0 = fromJust $ Plutus.fromData @MixerDatum d0
+  let DepositTree md1 = fromJust $ Plutus.fromData @MixerDatum d1
+  let mts0 = merkleTreeState md0
+  let mts1 = merkleTreeState md1
+  let ns = T.insert conf commit mts0
+  pure $ ns == mts1
