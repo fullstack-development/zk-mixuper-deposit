@@ -27,3 +27,4 @@ result*
 .vim
 scripts/wallet
 status.json
+*.cbor
