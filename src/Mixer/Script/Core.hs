@@ -94,7 +94,7 @@ validatorLogic _ _ _ _ = traceError "Disallowed transition"
 
 {-# INLINEABLE validateDeposit #-}
 validateDeposit :: MixerConfig -> DepositDatum -> DepositDatum -> Value -> Value -> Commitment -> Bool
-validateDeposit !conf !inputState !outputState !inputValue !outputValue !commit =
+validateDeposit conf !inputState !outputState !inputValue !outputValue !commit =
   traceIfFalse "Commitment has been submitted before" isFreshCommit
     && traceIfFalse "Nominal amount should be paid to script" (poolNominal conf == depositedAdaAmount)
     && traceIfFalse "Incorrect Merkle Tree state update" (newTreeState == treeInsert)
