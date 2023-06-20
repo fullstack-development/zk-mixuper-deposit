@@ -59,51 +59,52 @@ validatorLogic conf (DepositTree inputState) (Deposit commit) ctx =
     && validateDeposit conf inputState outputState inputValue outputValue commit
   where
     msg = "Incorrect next state"
-    info = scriptContextTxInfo ctx
-    outputs = txInfoOutputs info
-    protocolCurr = protocolCurrency conf
-    (nextStateDatum :: MixerDatum, treeOutputValue) = getNextState protocolCurr (depositTreeTokenName conf) outputs
-    outputState = case nextStateDatum of
+    !info = scriptContextTxInfo ctx
+    !outputs = txInfoOutputs info
+    !protocolCurr = protocolCurrency conf
+    !(nextStateDatum :: MixerDatum, !treeOutputValue) = getNextState protocolCurr (depositTreeTokenName conf) outputs
+    !outputState = case nextStateDatum of
       DepositTree dd -> dd
       Vault -> traceError msg
-    treeInputValue = case findOwnInput ctx of
+    !treeInputValue = case findOwnInput ctx of
       Just input -> txOutValue $ txInInfoResolved input
       Nothing -> traceError "Can't find own input"
-    vaultInput = case uniqueElement $ filterInputsByToken protocolCurr (vaultTokenName conf) (txInfoInputs info) of
+    !vaultInput = case uniqueElement $ filterInputsByToken protocolCurr (vaultTokenName conf) (txInfoInputs info) of
       Just i -> i
       Nothing -> traceError "Can't find vault input"
     inputValue = txOutValue . txInInfoResolved $ vaultInput
-    (vaultStateDatum :: MixerDatum, outputValue) = getNextState protocolCurr (vaultTokenName conf) outputs
-    isVault = case vaultStateDatum of
+    !(vaultStateDatum :: MixerDatum, outputValue) = getNextState protocolCurr (vaultTokenName conf) outputs
+    !isVault = case vaultStateDatum of
       DepositTree _ -> False
       Vault -> True
 -- Vault deposit validator:
 validatorLogic conf Vault Topup ctx = traceIfFalse "Does not spend deposit tree UTxO" hasTreeInput
   where
-    protocolCurr = protocolCurrency conf
-    inputs = txInfoInputs $ scriptContextTxInfo ctx
-    hasTreeInput = isJust $ uniqueElement $ filterInputsByToken protocolCurr (depositTreeTokenName conf) inputs
+    !protocolCurr = protocolCurrency conf
+    !inputs = txInfoInputs $ scriptContextTxInfo ctx
+    !hasTreeInput = isJust $ uniqueElement $ filterInputsByToken protocolCurr (depositTreeTokenName conf) inputs
 -- Vault withdraw validator:
 validatorLogic conf Vault Withdraw ctx = traceIfFalse "Does not spend nullifier store UTxO" hasStoreInput
   where
-    protocolCurr = protocolCurrency conf
-    inputs = txInfoInputs $ scriptContextTxInfo ctx
-    hasStoreInput = isJust $ uniqueElement $ filterInputsByToken protocolCurr (nullifierStoreTokenName conf) inputs
+    !protocolCurr = protocolCurrency conf
+    !inputs = txInfoInputs $ scriptContextTxInfo ctx
+    !hasStoreInput = isJust $ uniqueElement $ filterInputsByToken protocolCurr (nullifierStoreTokenName conf) inputs
 -- Disallowed transitions:
 validatorLogic _ _ _ _ = traceError "Disallowed transition"
 
 {-# INLINEABLE validateDeposit #-}
 validateDeposit :: MixerConfig -> DepositDatum -> DepositDatum -> Value -> Value -> Commitment -> Bool
-validateDeposit conf inputState outputState inputValue outputValue commit =
-  and
-    [ traceIfFalse "Commitment has been submitted before" $ notElem commit $ T.nonEmptyLeafs $ T.tree currentTreeState,
-      traceIfFalse "Nominal amount should be paid to script" $ poolNominal conf == depositedAdaAmount,
-      traceIfFalse "Incorrect Merkle Tree state update" $ newTreeState == T.insert treeConf commit currentTreeState,
-      traceIfFalse "Merkle Tree root is not correct" $ merkleTreeRoot outputState == rootTrunc
-    ]
+validateDeposit !conf !inputState !outputState !inputValue !outputValue !commit =
+  traceIfFalse "Commitment has been submitted before" isFreshCommit
+    && traceIfFalse "Nominal amount should be paid to script" (poolNominal conf == depositedAdaAmount)
+    && traceIfFalse "Incorrect Merkle Tree state update" (newTreeState == treeInsert)
+    && traceIfFalse "Merkle Tree root is not correct" (merkleTreeRoot outputState == rootTrunc)
   where
-    treeConf = merkleTreeConfig conf
-    currentTreeState = merkleTreeState inputState
-    newTreeState = merkleTreeState outputState
-    rootTrunc = byteString2Integer 31 . takeByteString 31 <$> T.getRoot treeConf (T.tree newTreeState)
-    depositedAdaAmount = valueOf outputValue Ada.adaSymbol Ada.adaToken - valueOf inputValue Ada.adaSymbol Ada.adaToken
+    !treeConf = merkleTreeConfig conf
+    !currentTreeState = merkleTreeState inputState
+    !newTreeState = merkleTreeState outputState
+    !rootTrunc = byteString2Integer 31 . takeByteString 31 <$> T.getRoot treeConf (T.tree newTreeState)
+    !depositedAdaAmount = valueOf outputValue Ada.adaSymbol Ada.adaToken - valueOf inputValue Ada.adaSymbol Ada.adaToken
+    !treeInsert = T.insert treeConf commit currentTreeState
+
+    !isFreshCommit = notElem commit $ T.nonEmptyLeafs $ T.tree currentTreeState
