@@ -1,6 +1,5 @@
-{-# LANGUAGE RecordWildCards #-}
--- TODO remove RecordWildCards
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE NoImplicitPrelude #-}
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
 {-# OPTIONS_GHC -Wno-simplifiable-class-constraints #-}
 {-# OPTIONS_GHC -fno-omit-interface-pragmas #-}
@@ -9,7 +8,7 @@
 -- | Implementation based on https://github.com/input-output-hk/hydra/tree/master/plutus-merkle-tree
 module Service.MerkleTree where
 
-import Ext.PlutusTx.List (replicate)
+import Ext.PlutusTx.List (drop, replicate)
 import Ext.PlutusTx.Numeric ((^))
 import GHC.Generics (Generic)
 import qualified PlutusTx
@@ -43,7 +42,7 @@ checkHashLength = (== 32) . lengthOfByteString
 data MerkleTreeConfig = MerkleTreeConfig
   { zeroRoot :: Hash, -- zero root digest
     zeroLeaf :: Hash,
-    height :: Integer
+    height :: !Integer
   }
   deriving stock (Generic, Haskell.Show, Haskell.Eq)
 
@@ -56,7 +55,7 @@ PlutusTx.makeIsDataIndexed
 -- | A MerkleTree representation, suitable for on-chain manipulation.
 data MerkleTree
   = MerkleEmpty
-  | MerkleNode Hash MerkleTree MerkleTree
+  | MerkleNode Hash !MerkleTree !MerkleTree
   | MerkleLeaf Hash
   deriving stock (Generic, Haskell.Show, Haskell.Eq)
 
@@ -77,8 +76,8 @@ PlutusTx.makeIsDataIndexed
   [('MerkleEmpty, 0), ('MerkleNode, 1), ('MerkleLeaf, 2)]
 
 data MerkleTreeState = MerkleTreeState
-  { nextLeaf :: NextInsertionCounter,
-    tree :: MerkleTree
+  { nextLeaf :: !NextInsertionCounter,
+    tree :: !MerkleTree
   }
   deriving stock (Generic, Haskell.Show, Haskell.Eq)
 
@@ -120,70 +119,84 @@ calculateZeroRoot h zeroHash
 -- e.g. for a tree of height 4: 8th insertion in binary is [True,False,False,False],
 -- which is interpreted as "to find where to insert new leaf go to [right,left,left,left]"
 counterToPath :: Integer -> NextInsertionCounter -> MerkleProofPath
-counterToPath h n
-  | n == 0 = zeroArr
-  | n > 2 ^ h = traceError "Merkle tree is full"
-  | otherwise = take (h - length binaryN) zeroArr <> binaryN
+counterToPath !h !n =
+  if n == 0
+    then zeroArr
+    else
+      ( if n > 2 ^ h
+          then traceError "Merkle tree is full"
+          else drop (length binaryN) zeroArr <> binaryN
+      )
   where
-    -- TODO drop (length binaryN)
-
-    zeroArr = replicate h False
-    binaryN = reverse $ go n
-    go k
-      | k == 0 = []
-      | otherwise =
-        let (d, m) = divMod k 2
-         in if m == 0
-              then False : go d
-              else True : go d
+    !zeroArr = replicate h False
+    !binaryN = reverse $ go n
+    go !k =
+      if k == 0
+        then []
+        else
+          let (d, m) = divMod k 2
+           in if m == 0
+                then False : go d
+                else True : go d
 {-# INLINEABLE counterToPath #-}
 
 -- | Traverse a tree according to Merkle Path saving subtrees, which are complementary to the path
 splitByPathMT :: MerkleProofPath -> MerkleTree -> [MerkleTree]
-splitByPathMT path tree = snd $ foldl reducer (tree, []) path
+splitByPathMT !path !tree = subtrees
   where
-    reducer (MerkleNode _ l r, acc) p
-      | p = (r, l : acc)
-      | otherwise = (l, r : acc)
-    reducer (t, acc) _ = (t, acc)
+    (_, !subtrees) = goSplit (tree, []) path
+    goSplit res [] = res
+    goSplit (tr, acc) (p : ps) = case tr of
+      MerkleNode _ l r ->
+        if p
+          then goSplit (r, l : acc) ps
+          else goSplit (l, r : acc) ps
+      t -> goSplit (t, acc) ps
 {-# INLINEABLE splitByPathMT #-}
 
 -- | Starting from inserted leaf compose new Merkle Tree from Merkle Path subtrees,
 -- and rehash all path elements
-composeByPathMT :: Hash -> MerkleTree -> (Bool, MerkleTree) -> MerkleTree
-composeByPathMT zeroLeaf l@(MerkleLeaf h) (_, MerkleEmpty) =
-  MerkleNode (combineHash h zeroLeaf) l MerkleEmpty
-composeByPathMT _ r@(MerkleLeaf hr) (_, l@(MerkleLeaf hl)) =
-  MerkleNode (combineHash hl hr) l r
-composeByPathMT _ acc@(MerkleNode hacc _ _) (p, el@(MerkleNode hel _ _))
-  | p = MerkleNode (combineHash hel hacc) el acc
-  | otherwise = MerkleNode (combineHash hacc hel) acc el
-composeByPathMT _ _ _ = traceError "Not consistent Merkle Tree composition"
+composeByPathMT :: Hash -> MerkleTree -> [(Bool, MerkleTree)] -> MerkleTree
+composeByPathMT _ !tree [] = tree
+composeByPathMT zl !tree (e : es) = composeByPathMT zl (mkCompose tree e) es
+  where
+    mkCompose :: MerkleTree -> (Bool, MerkleTree) -> MerkleTree
+    mkCompose l@(MerkleLeaf h) (_, MerkleEmpty) =
+      MerkleNode (combineHash h zl) l MerkleEmpty
+    mkCompose r@(MerkleLeaf hr) (_, l@(MerkleLeaf hl)) =
+      MerkleNode (combineHash hl hr) l r
+    mkCompose acc@(MerkleNode hacc _ _) (p, el@(MerkleNode hel _ _)) =
+      if p
+        then MerkleNode (combineHash hel hacc) el acc
+        else MerkleNode (combineHash hacc hel) acc el
+    mkCompose _ _ = traceError "Not consistent Merkle Tree composition"
 {-# INLINEABLE composeByPathMT #-}
 
 -- | insert is done off-chain first, it returns new MerkleTree (it should be a part of contract state)
 -- it is then checked on-chain: newMerkleTree == insert depositedCommitment oldMerkleTree
 insert :: MerkleTreeConfig -> Hash -> MerkleTreeState -> MerkleTreeState
-insert config commitment inputState = MerkleTreeState outputCounter outputTree
+insert config commitment !inputState = MerkleTreeState outputCounter outputTree
   where
-    h = height config
+    !h = height config
     zl = zeroLeaf config
-    next = nextLeaf inputState
-    path = counterToPath h next
-    inputTree = tree inputState
-    subTrees = splitByPathMT path inputTree
-    newLeaf = MerkleLeaf commitment
-    outputTree = foldl (composeByPathMT zl) newLeaf $ zip (reverse path) subTrees
-    outputCounter = succ next
+    !next = nextLeaf inputState
+    !path = counterToPath h next
+    !inputTree = tree inputState
+    !subTrees = splitByPathMT path inputTree
+    !newLeaf = MerkleLeaf commitment
+    !pathAndSubtrees = zip (reverse path) subTrees
+    !outputTree = composeByPathMT zl newLeaf pathAndSubtrees
+    !outputCounter = succ next
 {-# INLINEABLE insert #-}
 
 -- | Returns current root if Merkle Tree is not empty
 getRoot :: MerkleTreeConfig -> MerkleTree -> Maybe Hash
-getRoot MerkleTreeConfig {..} tree = case tree of
-  MerkleNode root _ _
-    | root == zeroRoot -> Nothing
-    | otherwise -> Just root
-  _ -> Nothing
+getRoot conf tree =
+  let zr = zeroRoot conf
+   in case tree of
+        MerkleNode root _ _ ->
+          if root == zr then Nothing else Just root
+        _ -> Nothing
 {-# INLINEABLE getRoot #-}
 
 nonEmptyLeafs :: MerkleTree -> [Hash]
