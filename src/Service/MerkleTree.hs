@@ -43,7 +43,7 @@ checkHashLength = (== 32) . lengthOfByteString
 data MerkleTreeConfig = MerkleTreeConfig
   { zeroRoot :: Hash, -- zero root digest
     zeroLeaf :: Hash,
-    height :: Integer
+    height :: !Integer
   }
   deriving stock (Generic, Haskell.Show, Haskell.Eq)
 
@@ -56,7 +56,7 @@ PlutusTx.makeIsDataIndexed
 -- | A MerkleTree representation, suitable for on-chain manipulation.
 data MerkleTree
   = MerkleEmpty
-  | MerkleNode Hash MerkleTree MerkleTree
+  | MerkleNode Hash !MerkleTree !MerkleTree
   | MerkleLeaf Hash
   deriving stock (Generic, Haskell.Show, Haskell.Eq)
 
@@ -77,8 +77,8 @@ PlutusTx.makeIsDataIndexed
   [('MerkleEmpty, 0), ('MerkleNode, 1), ('MerkleLeaf, 2)]
 
 data MerkleTreeState = MerkleTreeState
-  { nextLeaf :: NextInsertionCounter,
-    tree :: MerkleTree
+  { nextLeaf :: !NextInsertionCounter,
+    tree :: !MerkleTree
   }
   deriving stock (Generic, Haskell.Show, Haskell.Eq)
 

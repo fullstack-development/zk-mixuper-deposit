@@ -24,8 +24,8 @@ data MixerConfig = MixerConfig
     depositTreeTokenName :: TokenName,
     vaultTokenName :: TokenName,
     nullifierStoreTokenName :: TokenName,
-    poolNominal :: Integer,
-    merkleTreeConfig :: MerkleTreeConfig
+    poolNominal :: !Integer,
+    merkleTreeConfig :: !MerkleTreeConfig
   }
   deriving stock (Generic, Haskell.Show, Haskell.Eq)
 
@@ -48,8 +48,8 @@ PlutusTx.makeIsDataIndexed
   [('Deposit, 0), ('Topup, 1), ('Withdraw, 2)]
 
 data DepositDatum = DepositDatum
-  { merkleTreeState :: MerkleTreeState,
-    merkleTreeRoot :: Maybe Integer
+  { merkleTreeState :: !MerkleTreeState,
+    merkleTreeRoot :: !(Maybe Integer)
   }
   deriving stock (Generic, Haskell.Show, Haskell.Eq)
 
@@ -60,7 +60,7 @@ PlutusTx.makeIsDataIndexed
   [('DepositDatum, 0)]
 
 data MixerDatum
-  = DepositTree DepositDatum
+  = DepositTree !DepositDatum
   | Vault
   deriving stock (Generic, Haskell.Show, Haskell.Eq)
 
