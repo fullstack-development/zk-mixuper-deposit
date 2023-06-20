@@ -1,10 +1,10 @@
 {-# LANGUAGE RecordWildCards #-}
 -- TODO remove RecordWildCards
 {-# LANGUAGE TemplateHaskell #-}
-{-# OPTIONS_GHC -Wno-simplifiable-class-constraints #-}
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
-{-# OPTIONS_GHC -fno-specialise #-}
+{-# OPTIONS_GHC -Wno-simplifiable-class-constraints #-}
 {-# OPTIONS_GHC -fno-omit-interface-pragmas #-}
+{-# OPTIONS_GHC -fno-specialise #-}
 
 -- | Implementation based on https://github.com/input-output-hk/hydra/tree/master/plutus-merkle-tree
 module Service.MerkleTree where
@@ -61,9 +61,13 @@ data MerkleTree
   deriving stock (Generic, Haskell.Show, Haskell.Eq)
 
 instance Eq MerkleTree where
-  {-# INLINABLE (==) #-}
+  {-# INLINEABLE (==) #-}
   (MerkleLeaf h0) == (MerkleLeaf h1) = h0 == h1
-  (MerkleNode h0 l1 r1) == (MerkleNode h1 l2 r2) = h0 == h1 && l1 == l2 && r1 == r2
+  (MerkleNode h0 l1 r1) == (MerkleNode h1 l2 r2) =
+    if h0 == h1
+      then (if l1 == l2 then r1 == r2 else False)
+      else False
+  MerkleEmpty == MerkleEmpty = True
   _ == _ = False
 
 PlutusTx.makeLift ''MerkleTree
@@ -79,7 +83,7 @@ data MerkleTreeState = MerkleTreeState
   deriving stock (Generic, Haskell.Show, Haskell.Eq)
 
 instance Eq MerkleTreeState where
-  {-# INLINABLE (==) #-}
+  {-# INLINEABLE (==) #-}
   MerkleTreeState nl1 t1 == MerkleTreeState nl2 t2 = nl1 == nl2 && t1 == t2
 
 PlutusTx.makeLift ''MerkleTreeState
