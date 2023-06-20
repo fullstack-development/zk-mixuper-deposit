@@ -142,31 +142,40 @@ counterToPath !h !n =
 
 -- | Traverse a tree according to Merkle Path saving subtrees, which are complementary to the path
 splitByPathMT :: MerkleProofPath -> MerkleTree -> [MerkleTree]
-splitByPathMT path tree = snd $ foldl reducer (tree, []) path
+splitByPathMT !path !tree = subtrees
   where
-    reducer (MerkleNode _ l r, acc) p
-      | p = (r, l : acc)
-      | otherwise = (l, r : acc)
-    reducer (t, acc) _ = (t, acc)
+    (_, !subtrees) = goSplit (tree, []) path
+    goSplit res [] = res
+    goSplit (tr, acc) (p : ps) = case tr of
+      MerkleNode _ l r ->
+        if p
+          then goSplit (r, l : acc) ps
+          else goSplit (l, r : acc) ps
+      t -> goSplit (t, acc) ps
 {-# INLINEABLE splitByPathMT #-}
 
 -- | Starting from inserted leaf compose new Merkle Tree from Merkle Path subtrees,
 -- and rehash all path elements
-composeByPathMT :: Hash -> MerkleTree -> (Bool, MerkleTree) -> MerkleTree
-composeByPathMT zeroLeaf l@(MerkleLeaf h) (_, MerkleEmpty) =
-  MerkleNode (combineHash h zeroLeaf) l MerkleEmpty
-composeByPathMT _ r@(MerkleLeaf hr) (_, l@(MerkleLeaf hl)) =
-  MerkleNode (combineHash hl hr) l r
-composeByPathMT _ acc@(MerkleNode hacc _ _) (p, el@(MerkleNode hel _ _))
-  | p = MerkleNode (combineHash hel hacc) el acc
-  | otherwise = MerkleNode (combineHash hacc hel) acc el
-composeByPathMT _ _ _ = traceError "Not consistent Merkle Tree composition"
+composeByPathMT :: Hash -> MerkleTree -> [(Bool, MerkleTree)] -> MerkleTree
+composeByPathMT _ !tree [] = tree
+composeByPathMT zl !tree (e : es) = composeByPathMT zl (mkCompose tree e) es
+  where
+    mkCompose :: MerkleTree -> (Bool, MerkleTree) -> MerkleTree
+    mkCompose l@(MerkleLeaf h) (_, MerkleEmpty) =
+      MerkleNode (combineHash h zl) l MerkleEmpty
+    mkCompose r@(MerkleLeaf hr) (_, l@(MerkleLeaf hl)) =
+      MerkleNode (combineHash hl hr) l r
+    mkCompose acc@(MerkleNode hacc _ _) (p, el@(MerkleNode hel _ _)) =
+      if p
+        then MerkleNode (combineHash hel hacc) el acc
+        else MerkleNode (combineHash hacc hel) acc el
+    mkCompose _ _ = traceError "Not consistent Merkle Tree composition"
 {-# INLINEABLE composeByPathMT #-}
 
 -- | insert is done off-chain first, it returns new MerkleTree (it should be a part of contract state)
 -- it is then checked on-chain: newMerkleTree == insert depositedCommitment oldMerkleTree
 insert :: MerkleTreeConfig -> Hash -> MerkleTreeState -> MerkleTreeState
-insert config commitment inputState = MerkleTreeState outputCounter outputTree
+insert config commitment !inputState = MerkleTreeState outputCounter outputTree
   where
     !h = height config
     zl = zeroLeaf config
@@ -175,8 +184,8 @@ insert config commitment inputState = MerkleTreeState outputCounter outputTree
     !inputTree = tree inputState
     !subTrees = splitByPathMT path inputTree
     !newLeaf = MerkleLeaf commitment
-    !pathAndSubtree = zip (reverse path) subTrees
-    !outputTree = foldl (composeByPathMT zl) newLeaf pathAndSubtree
+    !pathAndSubtrees = zip (reverse path) subTrees
+    !outputTree = composeByPathMT zl newLeaf pathAndSubtrees
     !outputCounter = succ next
 {-# INLINEABLE insert #-}
 
