@@ -1,5 +1,5 @@
 cabal-version:      3.0
-name:               tornadano-deposit
+name:               zk-mixuper-deposit
 version:            0.1.0.0
 
 -- A short (one-line) description of the package.
@@ -129,7 +129,7 @@ executable dump-script
     plutus-core,
     cardano-ledger-alonzo,
     cardano-api,
-    tornadano-deposit,
+    zk-mixuper-deposit,
     serialise,
 
 executable dump-policy
@@ -151,4 +151,4 @@ executable dump-policy
     plutus-core,
     cardano-ledger-alonzo,
     cardano-api,
-    tornadano-deposit,
+    zk-mixuper-deposit,

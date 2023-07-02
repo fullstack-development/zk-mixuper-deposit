@@ -1,9 +1,9 @@
 cradle:
   cabal:
     - path: "./src"
-      component: "tornadano-deposit:lib:tornadano-deposit"
+      component: "zk-mixuper-deposit:lib:zk-mixuper-deposit"
     - path: "./dump-script"
-      component: "tornadano-deposit:exe:dump-script"
+      component: "zk-mixuper-deposit:exe:dump-script"
     - path: "./dump-policy"
-      component: "tornadano-deposit:exe:dump-policy"
+      component: "zk-mixuper-deposit:exe:dump-policy"
 

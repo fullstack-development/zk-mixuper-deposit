@@ -1,6 +1,6 @@
--- tornadano-deposit package
+-- zk-mixuper-deposit package
 packages:
-  tornadano-deposit.cabal
+  zk-mixuper-deposit.cabal
 
 -- plutus apps release
 source-repository-package
