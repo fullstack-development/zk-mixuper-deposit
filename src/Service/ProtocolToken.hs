@@ -45,6 +45,7 @@ getNextState cur tn outs = case filterOutputsByToken cur tn outs of
   [o] -> (getNextStateDatum o, txOutValue o)
   _ -> traceError "Exacly one script output should be created for next script state"
   where
+  -- TODO! output should have the same address as input, otherwise script should fail
     getNextStateDatum o = case txOutDatum o of
       OutputDatum d -> case PlutusTx.fromBuiltinData . getDatum $ d of
         Just r -> r
