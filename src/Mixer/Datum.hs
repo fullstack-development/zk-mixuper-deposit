@@ -24,3 +24,5 @@ type MixerConfig = Integer
 type MixerRedeemer = Integer
 
 type MixerDatum = ()
+
+type DepositDatum = ()
