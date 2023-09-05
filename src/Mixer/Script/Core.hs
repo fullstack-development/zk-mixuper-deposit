@@ -51,5 +51,6 @@ validatorLogic ::
   MixerRedeemer ->
   ScriptContext ->
   Bool
-validatorLogic _ _ magicNumber _ =
-  traceIfFalse "Wrong redeemer" (magicNumber == 42)
+validatorLogic conf _ magicNumber _ =
+  traceIfFalse "Wrong redeemer" (magicNumber == 42) &&
+  traceIfFalse "Wrong config" (conf > 0)
